@@ -1,54 +1,74 @@
 #!/bin/bash
 
+
+# Prevent continue script after exit code 1.
+set -e
+
+
+# Function for build, test and push PHP images.
 buildTestAndPush() {
     truncateImageName=${1/\//-}
     truncateImageName=${truncateImageName/:/-}
 
-    docker build --squash $2 -t $1 .
-
-    if [[ $? -eq 0 ]]
+    # Build image.
+    if [ -z "$2" ]
     then
-      echo "Docker image ${1} build success." >&2
+        if ! docker build --squash -t "$1" .
+        then
+            echo "Docker image $1 build failed."
+            exit 1
+        fi
     else
-      echo "Docker image ${1} build failed." >&2
-      exit 1
+        IFS=" " read -r -a dockerImageBuildArgs <<< "$2"
+        if ! docker build --squash "${dockerImageBuildArgs[@]}" -t "$1" .
+        then
+            echo "Docker image $1 build failed."
+            exit 1
+        fi
     fi
 
-    docker run -d -p 80:80 -e "TEST_MODE=true" --name ${truncateImageName} $1
+    # Run generated image in test mode.
+    docker run -d -p 80:80 -e "TEST_MODE=true" --name "$truncateImageName" "$1"
+
+    # Wait until is docker image fully loaded.
     sleep 3
-    yarn run docker-test-running
 
-    if [[ $? -eq 0 ]]
+    # Run nightwatch tests.
+    if yarn run docker-test
     then
-      docker push $1
+        docker push "$1"
     else
-      echo "Docker image ${1} test failed." >&2
-      exit 1
+        echo "Docker image $1 test failed."
+        exit 1
     fi
 
-    docker stop ${truncateImageName}
-    docker rm ${truncateImageName}
-    docker rmi $1
+    # Clean up.
+    docker stop "$truncateImageName"
+    docker rm "$truncateImageName"
+    docker rmi "$1"
 }
 
 
+# Run this via ./build.sh <command>
 case "$1" in
-	clear)
-        # Prepare build. THIS WILL REMOVE ALL YOUR EXISTING DOCKER CONTAINERS AND IMAGES!
-        docker stop $(docker ps -a -q)
+        # Prepare build.
+        # THIS WILL REMOVE ALL YOUR EXISTING DOCKER CONTAINERS AND IMAGES!
+    clear)
+        if [ -n "$(docker ps -q)" ]
+        then
+            docker stop "$(docker ps -q)"
+        fi
         docker system prune -af
-        docker rm $(docker ps -a -q)
-        docker rmi $(docker images -q)
-		;;
+        ;;
 
-	slim-core)
-        ####################################### SLIM PHP CORE IMAGE #########################################
+        # Generate slim core PHP image for all slim images.
+    slim-core)
         docker build --squash -t misaon/base-php-fpm:core -f ./base-php-fpm/Dockerfile ./base-php-fpm
         docker push misaon/base-php-fpm:core
-		;;
+        ;;
 
-	slim-base)
-        ######################################## SLIM PHP BASE IMAGES #########################################
+        # Generate slim base PHP images.
+    slim-base)
         ## PHP 8.0-dev base
         #docker build --squash -t misaon/base-php-fpm:8.0 -f ./base-php-fpm/8.0-dev/Dockerfile ./base-php-fpm/8.0-dev
         #docker push misaon/base-php-fpm:8.0
@@ -68,10 +88,10 @@ case "$1" in
         # PHP 7.1 base
         docker build --squash -t misaon/base-php-fpm:7.1 -f ./base-php-fpm/7.1/Dockerfile ./base-php-fpm/7.1
         docker push misaon/base-php-fpm:7.1
-		;;
+        ;;
 
-	slim-image)
-        ###################################### SLIM PHP IMAGES ########################################
+        # Generate slim PHP images (with extensions).
+    slim-image)
         # PHP 8.0 (dev)
         #buildTestAndPush "misaon/nginx-php:8.0-slim" "--build-arg BASE_IMAGE=misaon/base-php-fpm --build-arg BASE_TAG=8.0"
 
@@ -86,9 +106,10 @@ case "$1" in
 
         # PHP 7.1
         buildTestAndPush "misaon/nginx-php:7.1-slim" "--build-arg BASE_IMAGE=misaon/base-php-fpm --build-arg BASE_TAG=7.1"
-		;;
+        ;;
 
-	official-image)
+        # Generate official PHP images.
+    official-image)
         ######################################## OFFICIAL PHP IMAGES #########################################
         # PHP 7.3
         buildTestAndPush "misaon/nginx-php:7.3"
@@ -110,8 +131,7 @@ case "$1" in
         ### If you like to build PHP 5.5, you must remove zip extension (docker-php-ext-install => zip and libzib-dev library).
         ;;
 
-	*)
-		usage
-		exit 1
-		;;
+    *)
+        exit 1
+        ;;
 esac

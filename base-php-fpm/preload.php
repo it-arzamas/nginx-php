@@ -6,7 +6,7 @@ function _preload($preload, string $pattern = '/\.php$/', array $ignore = []): v
         foreach ($preload as $path) {
             _preload($path, $pattern, $ignore);
         }
-    } else if (is_string($preload)) {
+    } elseif (is_string($preload)) {
         $path = $preload;
         if (!in_array($path, $ignore, true)) {
             if (is_dir($path)) {
@@ -18,7 +18,7 @@ function _preload($preload, string $pattern = '/\.php$/', array $ignore = []): v
                     }
                     closedir($dh);
                 }
-            } else if (is_file($path) && preg_match($pattern, $path) && !opcache_compile_file($path)) {
+            } elseif (is_file($path) && preg_match($pattern, $path) && !opcache_compile_file($path)) {
                 trigger_error('Preloading Failed', E_USER_ERROR);
             }
         }

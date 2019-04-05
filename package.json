@@ -6,8 +6,12 @@
   "author": "Ondřej Misák <email@ondrejmisak.cz>",
   "license": "MIT",
   "scripts": {
-    "docker-test-running": "./node_modules/.bin/nightwatch -t /tests/test.js -c nightwatch.json",
-    "docker-build": "chmod +x build.sh && ./build.sh"
+    "shell-fix-permissions": "chmod +x ./*.sh",
+    "docker-test": "./node_modules/.bin/nightwatch -c nightwatch.json",
+    "cs-fix": "yarn run shell-fix-permissions && ./cs-shell.sh && ./cs-nginx.sh && ./cs-php.sh",
+    "docker-build-slim": "yarn run cs-fix && ./build.sh clear && ./build.sh slim-core && ./build.sh slim-base && ./build.sh slim-image",
+    "docker-build-official": "yarn run cs-fix && ./build.sh clear && ./build.sh official-image",
+    "docker-build": "yarn run cs-fix && ./build.sh clear && ./build.sh official-image && ./build.sh slim-core && ./build.sh slim-base && ./build.sh slim-image"
   },
   "dependencies": {
     "nightwatch": "^1.0.19"

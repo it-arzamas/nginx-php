@@ -1,40 +1,48 @@
 #!/bin/sh
+
+
+# Prevent continue script after exit code 1.
 set -e
 
+
+# Define PHP source directory.
 dir=/usr/src/php
 
+
+# Help.
 usage() {
-	echo "usage: $0 COMMAND"
-	echo
-	echo "Manage php source tarball lifecycle."
-	echo
-	echo "Commands:"
-	echo "   extract  extract php source tarball into directory $dir if not already done."
-	echo "   delete   delete extracted php source located into $dir if not already done."
-	echo
+    echo "usage: $0 COMMAND"
+    echo
+    echo "Manage php source tarball lifecycle."
+    echo
+    echo "Commands:"
+    echo "   extract  extract php source tarball into directory $dir if not already done."
+    echo "   delete   delete extracted php source located into $dir if not already done."
+    echo
 }
 
+
 case "$1" in
-	extract)
-		mkdir -p "$dir"
-		if [[ ! -f "$dir/.docker-extracted" ]]; then
-		    if [[ -z "$GIT_PHP_BRANCH" ]]; then
-			    tar -Jxf /usr/src/php.tar.xz -C "$dir" --strip-components=1
+    extract)
+        mkdir -p "$dir"
+        if [ ! -f "$dir/.docker-extracted" ]; then
+            if [ -z "$GIT_PHP_BRANCH" ]; then
+                tar -Jxf /usr/src/php.tar.xz -C "$dir" --strip-components=1
             else
-                wget -O php.tar.xz https://github.com/php/php-src/tarball/$GIT_PHP_BRANCH
+                wget -O php.tar.xz "https://github.com/php/php-src/tarball/$GIT_PHP_BRANCH"
                 tar -xzvf /usr/src/php.tar.xz -C "$dir" --strip 1
             fi
 
             touch "$dir/.docker-extracted"
-		fi
-		;;
+        fi
+        ;;
 
-	delete)
-		rm -rf "$dir"
-		;;
+    delete)
+        rm -rf "$dir"
+        ;;
 
-	*)
-		usage
-		exit 1
-		;;
+    *)
+        usage
+        exit 1
+        ;;
 esac
