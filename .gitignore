@@ -1,0 +1,5 @@
+/.idea
+/tests_output
+node_modules
+
+*.log
